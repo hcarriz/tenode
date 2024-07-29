@@ -32,7 +32,7 @@ func TestTemplToNode(t *testing.T) {
 			want: gomponents.Text("Hello, World!"),
 		},
 		{
-			name: "muliple",
+			name: "multiple",
 			args: args{
 				ctx:      context.Background(),
 				required: rendered.Text("Hello"),
