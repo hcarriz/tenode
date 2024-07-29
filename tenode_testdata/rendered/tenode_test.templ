@@ -1,0 +1,20 @@
+package rendered
+
+templ Text(text string) {
+	{ text }
+}
+
+templ Basic(text string, extra ...int) {
+	@basic(text, 1)
+	for _, x := range extra {
+		@basic(text, x)
+	}
+}
+
+templ basic(text string, count int) {
+	for i := 0; i < count; i++ {
+		<article>
+			<p>{ text }</p>
+		</article>
+	}
+}
