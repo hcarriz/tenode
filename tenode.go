@@ -3,43 +3,46 @@ package tenode
 import (
 	"context"
 	"io"
-
-	"github.com/a-h/templ"
-	"github.com/maragudk/gomponents"
 )
 
-// TemplToNode allows for templ components to be used as a gomponent.
-func TemplToNode(ctx context.Context, required templ.Component, input ...templ.Component) gomponents.Node {
-
-	components := append([]templ.Component{required}, input...)
-
-	group := gomponents.Map(components, func(in templ.Component) gomponents.Node {
-		return gomponents.NodeFunc(func(w io.Writer) error {
-			return in.Render(ctx, w)
-		})
-	})
-
-	return gomponents.NodeFunc(func(w io.Writer) error {
-		for _, x := range group {
-			if err := x.Render(w); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+type TemplInterface interface {
+	Render(context.Context, io.Writer) error
 }
 
-// NodeToTempl allows for gomponents to be used in a templ component.
-func NodeToTempl(required gomponents.Node, optional ...gomponents.Node) templ.Component {
+type GomponentInterface interface {
+	Render(io.Writer) error
+}
 
-	list := append([]gomponents.Node{required}, optional...)
+type Gomponent struct {
+	templ TemplInterface
+}
 
-	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
-		for _, x := range list {
-			if err := x.Render(w); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+var _ GomponentInterface = (*Gomponent)(nil)
+
+func (n Gomponent) Render(w io.Writer) error {
+	return n.templ.Render(context.Background(), w)
+}
+
+var _ TemplInterface = (*Templ)(nil)
+
+type Templ struct {
+	gomponent GomponentInterface
+}
+
+func (t Templ) Render(_ context.Context, w io.Writer) error {
+	return t.gomponent.Render(w)
+}
+
+// ToGomponent allows for templ components to be used as a gomponent.
+func ToGomponent(component TemplInterface) Gomponent {
+	return Gomponent{
+		templ: component,
+	}
+}
+
+// ToTempl allows for gomponents to be used in a templ component.
+func ToTempl(component GomponentInterface) Templ {
+	return Templ{
+		gomponent: component,
+	}
 }

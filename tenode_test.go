@@ -7,54 +7,40 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/hcarriz/tenode"
-	"github.com/hcarriz/tenode/tenode_testdata/rendered"
-	"github.com/maragudk/gomponents"
-	"github.com/maragudk/gomponents/html"
+	rendered "github.com/hcarriz/tenode/internal/tenode_testdata"
+	"maragu.dev/gomponents"
+	"maragu.dev/gomponents/html"
 )
 
 func TestTemplToNode(t *testing.T) {
-	type args struct {
-		ctx      context.Context
-		required templ.Component
-		input    []templ.Component
-	}
 	tests := []struct {
 		name string
-		args args
+		args templ.Component
 		want gomponents.Node
 	}{
 		{
 			name: "text",
-			args: args{
-				ctx:      context.Background(),
-				required: rendered.Text("Hello, World!"),
-			},
+			args: rendered.Text("Hello, World!"),
 			want: gomponents.Text("Hello, World!"),
 		},
 		{
 			name: "multiple",
-			args: args{
-				ctx:      context.Background(),
-				required: rendered.Text("Hello"),
-				input: []templ.Component{
-					rendered.Text(", "),
-					rendered.Text("World!"),
-				},
-			},
+			args: templ.Join(rendered.Text("Hello"),
+
+				rendered.Text(", "),
+				rendered.Text("World!"),
+			),
 			want: gomponents.Text("Hello, World!"),
 		},
 		{
 			name: "nested",
-			args: args{
-				ctx:      context.Background(),
-				required: rendered.Basic("Hello, World!"),
-			},
+			args: rendered.Basic("Hello, World!"),
 			want: html.Article(html.P(gomponents.Text("Hello, World!"))),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tenode.TemplToNode(tt.args.ctx, tt.args.required, tt.args.input...)
+			got := tenode.ToGomponent(tt.args)
 
 			input := bytes.NewBuffer(nil)
 			result := bytes.NewBuffer(nil)
@@ -64,12 +50,9 @@ func TestTemplToNode(t *testing.T) {
 				return
 			}
 
-			for _, x := range append([]templ.Component{tt.args.required}, tt.args.input...) {
-				if err := x.Render(context.Background(), input); err != nil {
-					t.Errorf("unable to render templ: %s", err.Error())
-					return
-				}
-
+			if err := tt.args.Render(context.Background(), input); err != nil {
+				t.Errorf("unable to render templ: %s", err.Error())
+				return
 			}
 
 			if input.String() != result.String() {
@@ -81,43 +64,33 @@ func TestTemplToNode(t *testing.T) {
 }
 
 func TestNodeToTempl(t *testing.T) {
-	type args struct {
-		required gomponents.Node
-		optional []gomponents.Node
-	}
 	tests := []struct {
 		name string
-		args args
+		args gomponents.Node
 		want templ.Component
 	}{
 		{
 			name: "text",
-			args: args{
-				required: gomponents.Text("Hello, World!"),
-			},
+			args: gomponents.Text("Hello, World!"),
 			want: rendered.Text("Hello, World!"),
 		},
 		{
 			name: "basic",
-			args: args{
-				required: html.Article(html.P(gomponents.Text("Hello, World!"))),
-			},
+			args: html.Article(html.P(gomponents.Text("Hello, World!"))),
 			want: rendered.Basic("Hello, World!"),
 		},
 		{
 			name: "basic - extra",
-			args: args{
-				required: html.Article(html.P(gomponents.Text("Hello, World!"))),
-				optional: []gomponents.Node{
-					html.Article(html.P(gomponents.Text("Hello, World!"))),
-				},
+			args: gomponents.Group{
+				html.Article(html.P(gomponents.Text("Hello, World!"))),
+				html.Article(html.P(gomponents.Text("Hello, World!"))),
 			},
 			want: rendered.Basic("Hello, World!", 1),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tenode.NodeToTempl(tt.args.required, tt.args.optional...)
+			got := tenode.ToTempl(tt.args)
 
 			input := bytes.NewBuffer(nil)
 			result := bytes.NewBuffer(nil)
@@ -127,12 +100,9 @@ func TestNodeToTempl(t *testing.T) {
 				return
 			}
 
-			for _, x := range append([]gomponents.Node{tt.args.required}, tt.args.optional...) {
-				if err := x.Render(input); err != nil {
-					t.Errorf("unable to render gomponents: %s", err.Error())
-					return
-				}
-
+			if err := tt.args.Render(input); err != nil {
+				t.Errorf("unable to render gomponents: %s", err.Error())
+				return
 			}
 
 			if input.String() != result.String() {
